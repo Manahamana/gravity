@@ -18,7 +18,7 @@ class Planet:
 	AU = 149.6e6 * 1000
 	G = 6.67428e-11
 	SCALE = 250 / AU  # 1AU = 100 pixels
-	TIMESTEP = 3600*24 # 1 day
+	TIMESTEP = 3600*100 # 1 day
 
 	def __init__(self, x, y, radius, color, mass, name):
 		self.x = x
@@ -114,7 +114,7 @@ def main():
 	moon.y_vel = 30.0 * 1000
 	moon.x_vel = 9.9 * 1000
 
-	planets = [sun, earth, moon]
+	planets = [sun, mars,earth, venus,mercury]
 	
 	while run:
 		clock.tick(60)

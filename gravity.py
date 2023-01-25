@@ -1,17 +1,17 @@
-from gravity_simulation.gravity import *
-
-field = GravityField()
-
-field.add_body(Body(15, 6 , -np.cos(np.pi / 4)/100, 0.01*np.cos(np.pi / 4) ,mass=30))
-field.add_body(Body(6, 6 , -np.cos(np.pi / 4)/100, 0.01*np.cos(np.pi / 4) ,mass=50))
-field.add_body(Body(-3, 0 ,np.cos(np.pi / 4)/(10*20), np.cos(np.pi / 4)/(10*20),mass=1500))
-field.add_body(Body(-6, -6 , -0.01*np.cos(np.pi / 4)/100, -0.001*np.cos(np.pi / 4) ,mass=60))
-field.add_body(Body(-10, 6 , -np.cos(np.pi / 4)/100, 0.01*np.cos(np.pi / 4) ,mass=100))
-field.add_body(Body(-19, 0 ,np.cos(np.pi / 4)/(10*20), np.cos(np.pi / 4)/(10*20),mass=100))
-field.add_body(Body(20, 6 , -np.cos(np.pi / 4)/100, 0.01*np.cos(np.pi / 4) ,mass=100))
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+x_grob = np.array([0, 2, 4, 8])
+x_fein = np.linspace(0, 10, 500)
 
+fig = plt.figure(figsize=(6, 3))
+ax1 = fig.add_subplot(1, 2, 1)
+ax1.plot(x_grob, x_grob ** 2, 'ro')
+ax1.plot(x_fein, x_fein ** 2, 'b-', linewidth=2)
 
-field.run(47000, C=0.001)
-field.save_animation(frames=100,figsize =(6,6),reduce_size_body=1)
+ax2 = fig.add_subplot(1, 2, 2)
+ax2.plot(x_grob, x_grob ** 2, 'ro', zorder=2)
+ax2.plot(x_fein, x_fein ** 2, 'b-', linewidth=2, zorder=1)
+
+plt.show()
