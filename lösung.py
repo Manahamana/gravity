@@ -5,6 +5,11 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.animation
 import sigma
+import random
+import scipy.interpolate
+import scipy.integrate
+import scipy
+
 
 #Sinüs Fehler
 """r = np.array([1,2,3,4,5,6,7,8,9])
@@ -429,5 +434,461 @@ def update(n):
     return pfeil_v_boot, pfeil_v_stroemung, pfeil_v_vector, plot_boot, plot_ziel, plot_bahn_boot
 
 ani = mpl.animation.FuncAnimation(fig, update, frames=t.size, interval = 30, blit=True)
+
+plt.show()"""
+
+
+
+#Interpolate
+
+"""messwerte_h = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                        11.02, 15, 20.06, 25, 32.16, 40])
+messwerte_rho = np.array([1.225, 1.112, 1.007, 0.909, 0.819, 0.736,
+                          0.660, 0.590, 0.526, 0.467, 0.414, 0.364,
+                          0.195, 0.0880, 0.0401, 0.0132, 0.004])
+
+# Erzeuge die Interpolationsfunktionen.
+interp_cubic = scipy.interpolate.interp1d(messwerte_h,
+                                          messwerte_rho,
+                                          kind='cubic')
+interp_linear = scipy.interpolate.interp1d(messwerte_h,
+                                           messwerte_rho,
+                                           kind='linear')
+interp_nearest = scipy.interpolate.interp1d(messwerte_h,
+                                            messwerte_rho,
+                                            kind='nearest')
+
+# Erzeuge ein fein aufgelöstes Array von Höhen.
+h = np.linspace(0, np.max(messwerte_h), 1000)
+
+# Erzeuge eine Figure und eine Axes.
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.set_xlabel('$h$ [km]')
+ax.set_ylabel('$\\rho$ [kg/m³]')
+ax.set_xlim(10, 40)
+ax.set_ylim(0, 0.4)
+ax.grid()
+
+# Plotte die Messdaten und die drei Interpolationsfunktionen.
+ax.plot(messwerte_h, messwerte_rho, 'or', label='Messung', zorder=5)
+ax.plot(h, interp_nearest(h), '-k', label='nearest')
+ax.plot(h, interp_linear(h), '-b', label='linear')
+ax.plot(h, interp_cubic(h), '-r', label='cubic')
+ax.legend()
+
+# Zeige die Grafik an.
+plt.show()"""
+
+
+
+#Luftauftrieb
+"""scal_v = 0.1
+scal_a = 0.1
+h = 2.0
+teta = math.radians(30)
+betrag_v0 = 30
+cwA = 0.45 * math.pi * 20e-3 ** 2
+m = 2.7e-3
+g = 9.81
+rho = 1.225
+hs = 8.4e3
+
+r0 = np.array([0, h])
+v0 = np.array([betrag_v0 * math.cos(teta), betrag_v0 * math.sin(teta)])
+
+y0 = h 
+
+
+
+def F(y, v):
+    Fr = -0.5 * rho * np.e**(-y/hs) * cwA * np.linalg.norm(v) * v
+    Fg = m * g * np.array([0, -1])
+    return Fg + Fr
+
+
+def dgl(t, u):
+    r, v = np.split(u, 2)
+    y = r[1]
+    return np.concatenate([v, F(y, v)/m])
+
+u0 = np.concatenate((r0, v0))
+
+def aufprall(t, u):
+    r, v = np.split(u, 2)
+    return r[1]
+
+aufprall.terminal = True
+
+result = scipy.integrate.solve_ivp(dgl, [0, np.inf], u0, events=aufprall, dense_output=True)
+
+t_stuetz = result.t
+
+r_stuetz, v_stuetz = np.split(result.y, 2)
+
+t_interp = np.linspace(0, max(t_stuetz), 1000)
+r_interp, v_interp = np.split(result.sol(t_interp), 2)
+fig = plt.figure(figsize=(9, 4))
+
+# Plotte die Bahnkurve.
+ax = fig.add_subplot(1, 1, 1)
+ax.set_xlabel('$x$ [m]')
+ax.set_ylabel('$y$ [m]')
+ax.set_aspect('equal')
+ax.set_xlim(0, 20)
+ax.set_ylim(0, 10)
+ax.grid()
+ax.plot(r_stuetz[0], r_stuetz[1], '.b')
+ax.plot(r_interp[0], r_interp[1], '-b')
+
+# Erzeuge einen Punktplot für die Position des Balles.
+plot_ball, = ax.plot([], [], 'o', color='red', zorder=4)
+
+# Erzeuge Pfeile für die Geschwindigkeit und die Beschleunigung.
+style = mpl.patches.ArrowStyle.Simple(head_length=6, head_width=3)
+pfeil_v = mpl.patches.FancyArrowPatch((0, 0), (0, 0),
+                                      color='red',
+                                      arrowstyle=style, zorder=3)
+pfeil_a = mpl.patches.FancyArrowPatch((0, 0), (0, 0),
+                                      color='black',
+                                      arrowstyle=style, zorder=3)
+ax.add_patch(pfeil_v)
+ax.add_patch(pfeil_a)
+
+# Erzeuge Textfelder für die Anzeige des aktuellen
+# Geschwindigkeits- und Beschleunigungsbetrags.
+text_t = ax.text(2.1, 1.5, '', color='blue')
+text_v = ax.text(2.1, 1.1, '', color='red')
+text_a = ax.text(2.1, 0.7, '', color='black')
+
+def update(n):
+    t = t_interp[n]
+    r = r_interp[:, n]
+    v = v_interp[:, n]
+    y = r[1]
+    a = F(y, v_interp[:, n]) / m
+    plot_ball.set_data(r)
+    pfeil_v.set_positions(r, r + scal_v * v)
+    pfeil_a.set_positions(r, r + scal_a * a)
+    text_t.set_text(f'$t$ = {t:.2f} s')
+    text_v.set_text(f'$v$ = {np.linalg.norm(v):.1f} m/s')
+    text_a.set_text(f'$a$ = {np.linalg.norm(a):.1f} m/s²')
+    print(y)
+    return plot_ball, pfeil_v, pfeil_a, text_v, text_a, text_t
+
+
+ani = mpl.animation.FuncAnimation(fig, update, frames=t_interp.size,
+                                  interval=30, blit=True)
+plt.show()"""
+
+
+
+
+#Schiefer Wurf
+
+"""h = 100.0
+scal_v = 0.1
+scal_a = 0.1
+cwA = 0.45 * math.pi * 20e-3 ** 2
+m = 2.7e-3
+g = 9.81
+rho = 1.225
+hs = 8.4e3
+
+r0 = np.array([0, 1])
+v0 = np.array([0, 44.3])
+
+def F(v):
+    Fg = m * g * np.array([0, -1])
+    #Fr = -0.5 * rho * cwA * np.linalg.norm(v) * v
+    Fl = np.array([-0.0005, 0])
+    return Fg + Fl
+
+def dgl(t, u):
+    r, v = np.split(u, 2)
+    return np.concatenate([v, F(v)/m])
+
+u0 = np.concatenate((r0, v0))
+
+def aufprall(t, u):
+    r, v = np.split(u, 2)
+    return r[1]
+
+aufprall.terminal = True
+
+
+result = scipy.integrate.solve_ivp(dgl, [0, np.inf], u0, events=aufprall, dense_output=True)
+
+t_stuetz = result.t
+
+r_stuetz, v_stuetz = np.split(result.y, 2)
+
+t_interp = np.linspace(0, max(t_stuetz), 1000)
+
+r_interp, v_interp = np.split(result.sol(t_interp), 2)
+
+fig = plt.figure(figsize=(9, 4))
+
+# Plotte die Bahnkurve.
+ax = fig.add_subplot(1, 1, 1)
+ax.set_xlabel('$x$ [m]')
+ax.set_ylabel('$y$ [m]')
+ax.set_aspect('equal')
+ax.set_xlim(-20, 120)
+ax.set_ylim(0, 120)
+ax.grid()
+ax.plot(r_stuetz[0], r_stuetz[1], '.b')
+ax.plot(r_interp[0], r_interp[1], '-b')
+
+# Erzeuge einen Punktplot für die Position des Balles.
+plot_ball, = ax.plot([], [], 'o', color='red', zorder=4)
+
+# Erzeuge Pfeile für die Geschwindigkeit und die Beschleunigung.
+style = mpl.patches.ArrowStyle.Simple(head_length=6, head_width=3)
+pfeil_v = mpl.patches.FancyArrowPatch((0, 0), (0, 0),
+                                      color='red',
+                                      arrowstyle=style, zorder=3)
+pfeil_a = mpl.patches.FancyArrowPatch((0, 0), (0, 0),
+                                      color='black',
+                                      arrowstyle=style, zorder=3)
+ax.add_patch(pfeil_v)
+ax.add_patch(pfeil_a)
+
+# Erzeuge Textfelder für die Anzeige des aktuellen
+# Geschwindigkeits- und Beschleunigungsbetrags.
+text_t = ax.text(70, 100.5, '', color='blue')
+text_v = ax.text(70, 80.5, '', color='red')
+text_a = ax.text(70, 60.7, '', color='black')
+
+def update(n):
+    t = t_interp[n]
+    r = r_interp[:, n]
+    v = v_interp[:, n]
+    a = F(v_interp[:, n]) / m
+    plot_ball.set_data(r)
+    pfeil_v.set_positions(r, r + scal_v * v)
+    pfeil_a.set_positions(r, r + scal_a * a)
+    text_t.set_text(f'$t$ = {t:.2f} s')
+    text_v.set_text(f'$v$ = {np.linalg.norm(v):.1f} m/s')
+    text_a.set_text(f'$a$ = {np.linalg.norm(a):.1f} m/s²')
+    return plot_ball, pfeil_v, pfeil_a, text_v, text_a, text_t
+
+
+ani = mpl.animation.FuncAnimation(fig, update, frames=t_interp.size,
+                                  interval=30, blit=True)
+plt.show()"""
+
+
+
+"""T = 5.0
+dt = 0.005
+# Anfangsort [m].
+r0 = np.array([0.1, 0, 0])
+# Anfangsgeschwindigkeit [m/s].
+v0 = np.array([0.0, 0.0, 0.0])
+# Drehzahl der Scheibe [1/s].
+f = 1.0
+
+# Vektor der Winkelgeschwindigkeit [1/s].
+omega = np.array([0, 0, 2 * math.pi * f])
+
+
+def dgl(t, u):
+    r, v = np.split(u, 2)
+
+    # Berechne die Coriolisbeschleunigung.
+    a_c = - 2 * np.cross(omega, v)
+
+    # Berechne die Zentrifugalbeschleunigung.
+    a_z = - np.cross(omega, np.cross(omega, r))
+
+    # Berechne die Gesamtbeschleunigung.
+    a = a_c + a_z
+
+    return np.concatenate([v, a])
+
+
+# Lege den Zustandsvektor zum Zeitpunkt t=0 fest.
+u0 = np.concatenate((r0, v0))
+
+# Löse die Bewegungsgleichung numerisch.
+result = scipy.integrate.solve_ivp(dgl, [0, T], u0,
+                                   t_eval=np.arange(0, T, dt))
+t = result.t
+r, v = np.split(result.y, 2)
+
+# Erzeuge eine Figure und eine Axes.
+fig = plt.figure(figsize=(9, 6))
+ax = fig.add_subplot(1, 1, 1)
+ax.set_aspect('equal')
+ax.set_xlabel('$x$ [m]')
+ax.set_ylabel('$y$ [m]')
+ax.grid()
+
+# Plotte die Bahnkurve in der Aufsicht.
+plot_bahn, = ax.plot(r[0], r[1], '-b', zorder=3)
+
+# Erzeuge eine Punktplot für die Position des Körpers.
+plot_punkt, = ax.plot([], [], 'o', zorder=5,
+                      color='red', markersize=10)
+
+
+def update(n):
+    # Aktualisiere die Position des Körpers.
+    plot_punkt.set_data(r[0:2, n])
+
+    # Plotte die Bahnkurve bis zum aktuellen Zeitpunkt.
+    plot_bahn.set_data(r[0:2, :n + 1])
+
+    return plot_punkt, plot_bahn
+
+
+# Erzeuge das Animationsobjekt und starte die Animation.
+ani = mpl.animation.FuncAnimation(fig, update, frames=t.size,
+                                  interval=30, blit=True)
+plt.show()"""
+
+
+
+
+
+#Das keplersche Gesetz
+"""tag = 24 * 60 *60
+jahr = tag * 365.25
+AE = 1.495978707e11
+scal_a = 20
+scal_v = 1e-5
+t_max = 10 * jahr
+dt = 0.5 * tag
+r0 = np.array([152.10e9, 0.0])
+v0 = np.array([0.0, 15e3])
+r1 = np.array([170.10e9, 0.0])
+v1 = np.array([0.0, 13.415e3])
+dN = 40
+M = 1.9885e30
+G = 6.6743e-11
+T = 3 * jahr
+def dgl(t, u):
+
+    r, v = np.split(u, 2)
+    a = - G * M * r / np.linalg.norm(r) ** 3
+    return np.concatenate([v, a])
+
+u0 = np.concatenate((r0, v0))
+u1 = np.concatenate((r1, v1))
+
+result0 = scipy.integrate.solve_ivp(dgl, [0, T], u0, rtol=1e-9,
+                                   t_eval=np.arange(0, T, dt))
+result1 = scipy.integrate.solve_ivp(dgl, [0, T], u1, rtol=1e-9,
+                                   t_eval=np.arange(0, T, dt))
+
+t = result0.t
+
+t1 = result1.t
+r, v = np.split(result0.y, 2)
+rp, vp = np.split(result1.y, 2)
+
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.set_aspect('equal')
+ax.set_xlabel('$x$ [AE]')
+ax.set_ylabel('$y$ [AE]')
+ax.set_xlim(-0.2, 1.1)
+ax.set_ylim(-0.6, 0.6)
+ax.grid()
+
+
+
+
+ax.plot(r[0] / AE, r[1] / AE, '-b')
+
+
+ax.plot(rp[0] / AE, rp[1] / AE, '-r')
+
+
+plot_planet, = ax.plot([], [], 'o', color='red')
+plot_sonne, = ax.plot([0], [0], 'o', color='gold')
+plot_planet1, = ax.plot([], [], 'o', color='green')
+
+style = mpl.patches.ArrowStyle.Simple(head_length=6, head_width=3)
+pfeil_v = mpl.patches.FancyArrowPatch((0, 0), (0, 0), color='red',
+                                      arrowstyle=style)
+pfeil_a = mpl.patches.FancyArrowPatch((0, 0), (0, 0), color='black',
+                                      arrowstyle=style)
+pfeil_vp = mpl.patches.FancyArrowPatch((0, 0), (0, 0), color='red',
+                                      arrowstyle=style)
+pfeil_ap = mpl.patches.FancyArrowPatch((0, 0), (0, 0), color='black',
+                                      arrowstyle=style)
+
+
+
+
+text_t = ax.text(0.01, 0.95, '', color='blue',
+                 transform=ax.transAxes)
+text_x = ax.text(0.01, 0.90, '', color='blue',
+                 transform=ax.transAxes)
+text_y = ax.text(0.01, 0.85, '', color='blue',
+                 transform=ax.transAxes)
+
+flaeche = mpl.patches.Polygon([[0, 0], [0, 0]], closed=True,
+                              alpha=0.5, facecolor='red')
+
+flaeche1 = mpl.patches.Polygon([[0, 0], [0, 0]], closed=True,
+                              alpha=0.5, facecolor='green')
+ax.add_artist(flaeche)
+ax.add_artist(flaeche1)
+
+def polygon_flaeche(x, y):
+    return 0.5 * np.abs((y + np.roll(y, 1)) @ (x - np.roll(x, 1)))
+
+
+
+def update(n):
+   
+
+
+
+
+
+    plot_planet.set_data(r[:, n] / AE)
+    
+    plot_planet1.set_data(rp[:, n] / AE)
+    
+    
+    if n >= dN:
+            # Erzeuge ein (dN + 2) x 2 - Array. Als ersten Punkt
+            # enthält dies die Position (0, 0) der Sonne und die
+            # weiteren Punkte sind die dN + 1 Punkte der Bahnkurve
+            # des Planeten.
+        xy = np.zeros((dN + 2, 2))
+        xy[1:, :] = r[:, (n - dN):(n + 1)].T / AE
+        flaeche.set_xy(xy)
+
+        xy1 = np.zeros((dN + 2, 2))
+        xy1[1:, :] = rp[:, (n - dN):(n + 1)].T / AE
+        flaeche1.set_xy(xy1)
+
+        A = polygon_flaeche(xy[:, 0], xy[:, 1])
+        A1 = polygon_flaeche(xy1[:, 0], xy1[:, 1])
+        text_x.set_text(f'$Ax$ = {A} AE**2')
+        text_y.set_text(f'$Ay$ = {A1} AE**2')
+    else:
+
+        flaeche.set_xy([[0, 0], [0, 0]])
+        flaeche1.set_xy([[0, 0], [0, 0]])
+        text_x.set_text(f'')
+        
+        text_y.set_text(f'')
+
+    
+    text_t.set_text(f't = {t[n] / tag:.0f} d')
+
+
+    
+
+    return plot_planet,  text_t, plot_planet1, text_x, text_y, flaeche
+
+ani = mpl.animation.FuncAnimation(fig, update,
+                                  interval=30, frames=t.size)
 
 plt.show()"""
